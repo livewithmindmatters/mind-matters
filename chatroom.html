@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Public Chatroom</title>
+    <link href="assets/img/favicon.png" rel="icon">
+
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background-color: #f0f2f5;
+        }
+
+        .logout-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background: #0ea2bd;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .back-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            color: #0ea2bd;
+            text-decoration: none;
+        }
+
+        .chat-container {
+            max-width: 800px;
+            margin: 60px auto 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+
+        .messages {
+            height: 500px;
+            overflow-y: auto;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .message {
+            margin: 10px 0;
+            padding: 10px 15px;
+            background: #f0f2f5;
+            border-radius: 20px;
+            max-width: 70%;
+            word-break: break-word;
+        }
+
+        .message.self {
+            background: #0ea2bd;
+            color: white;
+            margin-left: auto;
+        }
+
+        .message-input {
+            display: flex;
+            gap: 10px;
+        }
+
+        #messageInput {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            font-size: 16px;
+        }
+
+        .message-input button {
+            padding: 12px 24px;
+            background: #0ea2bd;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <button class="logout-btn" onclick="logout()">Log Out</button>
+    <a href="index.html" class="back-btn">← Back to Home</a>
+
+    <div class="chat-container">
+        <div class="messages" id="messages"></div>
+        <div class="message-input">
+            <input type="text" id="messageInput" placeholder="Type your message...">
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+
+    <script>
+            const firebaseConfig = {
+  apiKey: "AIzaSyA4GQTBtA_JGuynIXCSoSI44bqqvB_8Tok",
+  authDomain: "mind-matters-8c561.firebaseapp.com",
+  projectId: "mind-matters-8c561",
+  storageBucket: "mind-matters-8c561.firebasestorage.app",
+  messagingSenderId: "364137932682",
+  appId: "1:364137932682:web:1733a588613f4191b3ca73"
+};
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+
+        // Security check
+        auth.onAuthStateChanged(user => {
+            if (!user) window.location.href = 'auth.html';
+        });
+
+        // Chat functions
+        const messagesCollection = db.collection('messages');
+
+        // Load messages
+        messagesCollection
+            .orderBy('timestamp')
+            .onSnapshot(snapshot => {
+                const messagesDiv = document.getElementById('messages');
+                messagesDiv.innerHTML = '';
+                
+                snapshot.forEach(doc => {
+                    const message = doc.data();
+                    const messageElement = document.createElement('div');
+                    messageElement.className = `message ${auth.currentUser.email === message.user ? 'self' : ''}`;
+                    messageElement.innerHTML = `
+                        <strong>${message.user}:</strong> ${message.text}
+                    `;
+                    messagesDiv.appendChild(messageElement);
+                });
+                
+                // Scroll to bottom
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            });
+
+        // Send message
+        async function sendMessage() {
+            const messageInput = document.getElementById('messageInput');
+            const user = auth.currentUser;
+            
+            if (!user) return;
+            if (!messageInput.value.trim()) return;
+
+            // Sanitize input
+            const sanitizedText = messageInput.value
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+
+            await messagesCollection.add({
+                text: sanitizedText,
+                user: user.email,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            messageInput.value = '';
+        }
+
+        // Enter key support
+        document.getElementById('messageInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        // Logout
+        function logout() {
+            auth.signOut().then(() => {
+                window.location.href = 'landing.html';
+            });
+        }
+    </script>
+</body>
+</html>
